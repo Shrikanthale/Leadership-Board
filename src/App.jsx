@@ -1,15 +1,15 @@
-// src/App.js
-import React, { useState, useEffect } from 'react';
-import { 
-  Container, 
-  Box, 
-  Typography, 
-  TextField, 
-  Button, 
-  FormControl, 
-  InputLabel, 
-  Select, 
-  MenuItem, 
+// App.js
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+  Container,
+  Box,
+  Typography,
+  TextField,
+  Button,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
   CircularProgress,
   Paper,
   Grid,
@@ -28,24 +28,18 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import FitnessCenterIcon from '@mui/icons-material/FitnessCenter';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 
+import { isSameDay, isSameMonth, isSameYear, parseISO } from 'date-fns';
 const theme = createTheme({
   palette: {
     primary: {
       main: '#3f51b5',
-      light: '#757de8',
-      dark: '#002984',
     },
     secondary: {
       main: '#ff3d00',
-      light: '#ff7539',
-      dark: '#c30000',
     },
     background: {
       default: '#f5f7ff',
       paper: '#ffffff',
-    },
-    success: {
-      main: '#43a047',
     },
   },
   typography: {
@@ -73,8 +67,7 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [animate, setAnimate] = useState(false);
-
-  console.log("leaderboardData",leaderboardData)
+  const [searchUserName, setSearchUserName] = useState('');
   const fetchLeaderboardData = async () => {
     setLoading(true);
     setError(null);
@@ -82,25 +75,20 @@ function App() {
 
     try {
       let url = 'http://192.168.1.9:5000/api/activity';
-      const params = new URLSearchParams();
+      const params = {};
 
       if (timeFrame !== 'all') {
-        params.append('timeFrame', timeFrame);
+        params.timeFrame = timeFrame;
       }
 
-      if (searchUserId) {
-        params.append('searchUserId', searchUserId);
+      if (searchUserName.trim()) {
+        params.userName = searchUserName.trim();
       }
 
-      if (params.toString()) {
-        url += `?${params.toString()}`;
-      }
-
-      const response = await axios.get(url);
+      const response = await axios.get(url, { params });
       setLeaderboardData(response.data);
       setLoading(false);
       setAnimate(true);
-
     } catch (err) {
       console.error('Error fetching leaderboard data:', err);
       setError('Failed to fetch leaderboard data. Please try again.');
@@ -120,7 +108,62 @@ function App() {
       default: return 'All Time';
     }
   };
+  const processedData = useMemo(() => {
+    const now = new Date();
+  
+    // Filter data based on timeFrame
+    let filteredData = leaderboardData.filter((item) => {
+      if (!item.createdAt) return false;
+  
+      const activityDate = parseISO(item.activityTime); // convert to Date object
 
+      console.log("activityDate",activityDate)
+      switch (timeFrame) {
+        case 'day':
+          return isSameDay(activityDate, now);
+        case 'month':
+          return isSameMonth(activityDate, now);
+        case 'year':
+          return isSameYear(activityDate, now);
+        default:
+          return true; // 'all' case
+      }
+    });
+  
+    if (searchUserName.trim()) {
+      const nameLower = searchUserName.trim().toLowerCase();
+      filteredData = filteredData.filter((item) => item.userName.toLowerCase().includes(nameLower));
+    }
+    // Group by userName
+    const grouped = {};
+  
+    filteredData.forEach((item) => {
+      const name = item.userName;
+      if (!grouped[name]) {
+        grouped[name] = {
+          ...item,
+          points: 0,
+          entries: 0,
+        };
+      }
+      grouped[name].points += item.points;
+      grouped[name].entries += 1;
+    });
+  
+    const groupedArray = Object.values(grouped);
+  
+    // Sort by points, then entries
+    groupedArray.sort((a, b) => {
+      if (b.points !== a.points) return b.points - a.points;
+      return b.entries - a.entries;
+    });
+  
+    // Add rank
+    return groupedArray.map((item, index) => ({
+      ...item,
+      rank: index + 1,
+    }));
+  }, [leaderboardData, timeFrame , searchUserName]);
   return (
     <ThemeProvider theme={theme}>
       <Container maxWidth="lg">
@@ -152,7 +195,11 @@ function App() {
               <Grid item xs={12} md={4}>
                 <FormControl fullWidth>
                   <InputLabel>Time Frame</InputLabel>
-                  <Select value={timeFrame} label="Time Frame" onChange={(e) => setTimeFrame(e.target.value)}>
+                  <Select
+                    value={timeFrame}
+                    label="Time Frame"
+                    onChange={(e) => setTimeFrame(e.target.value)}
+                  >
                     <MenuItem value="all">All Time</MenuItem>
                     <MenuItem value="day">Today</MenuItem>
                     <MenuItem value="month">This Month</MenuItem>
@@ -161,13 +208,36 @@ function App() {
                 </FormControl>
               </Grid>
               <Grid item xs={12} md={5}>
-                <TextField label="Search by User ID" variant="outlined" fullWidth value={searchUserId} onChange={(e) => setSearchUserId(e.target.value)} />
+                <TextField
+                  label="Search by User ID"
+                  variant="outlined"
+                  fullWidth
+                  value={searchUserName}
+                  onChange={(e) => setSearchUserName(e.target.value)}
+                />
               </Grid>
               <Grid item xs={6} md={1.5}>
-                <Button fullWidth variant="contained" onClick={fetchLeaderboardData} startIcon={<SearchIcon />}>Search</Button>
+                <Button
+                  fullWidth
+                  variant="contained"
+                  onClick={fetchLeaderboardData}
+                  startIcon={<SearchIcon />}
+                >
+                  Search
+                </Button>
               </Grid>
               <Grid item xs={6} md={1.5}>
-                <Button fullWidth variant="outlined" onClick={fetchLeaderboardData} startIcon={<RefreshIcon />}>Update</Button>
+                <Button
+                  fullWidth
+                  variant="outlined"
+                  onClick={() => {
+                    setSearchUserName('');
+                    fetchLeaderboardData();
+                  }}
+                  startIcon={<RefreshIcon />}
+                >
+                  Update
+                </Button>
               </Grid>
             </Grid>
           </Paper>
@@ -178,7 +248,7 @@ function App() {
                 <FitnessCenterIcon sx={{ mr: 1 }} />
                 <Typography variant="h6">{getTimeFrameLabel()} Rankings</Typography>
               </Box>
-              <Chip label={`${leaderboardData.length} Users`} color="secondary" />
+              <Chip label={`${leaderboardData.length} Activity`} color="secondary" />
             </Box>
             {error && <Box sx={{ p: 2, bgcolor: '#ffebee' }}><Typography color="error">{error}</Typography></Box>}
             {loading ? (
@@ -188,7 +258,7 @@ function App() {
             ) : (
               <Fade in={animate} timeout={500}>
                 <Box>
-                  <LeaderboardTable data={leaderboardData} />
+                  <LeaderboardTable data={processedData} />
                 </Box>
               </Fade>
             )}

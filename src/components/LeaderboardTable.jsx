@@ -77,36 +77,36 @@ const LeaderboardTable = ({ data }) => {
       ?.toUpperCase()
       ?.slice(0, 2);
   };
-  const processedData = useMemo(() => {
-    const grouped = {};
+//   const processedData = useMemo(() => {
+//     const grouped = {};
   
-    data.forEach((item) => {
-      const name = item.userName;
-      if (!grouped[name]) {
-        grouped[name] = {
-          ...item,
-          points: 0,
-          entries: 0,
-        };
-      }
-      grouped[name].points += item.points;
-      grouped[name].entries += 1;
-    });
+//     data.forEach((item) => {
+//       const name = item.userName;
+//       if (!grouped[name]) {
+//         grouped[name] = {
+//           ...item,
+//           points: 0,
+//           entries: 0,
+//         };
+//       }
+//       grouped[name].points += item.points;
+//       grouped[name].entries += 1;
+//     });
   
-    const groupedArray = Object.values(grouped);
+//     const groupedArray = Object.values(grouped);
   
-    // Sort descending by points, then by entries if tie
-    groupedArray.sort((a, b) => {
-      if (b.points !== a.points) return b.points - a.points;
-      return b.entries - a.entries;
-    });
+//     // Sort descending by points, then by entries if tie
+//     groupedArray.sort((a, b) => {
+//       if (b.points !== a.points) return b.points - a.points;
+//       return b.entries - a.entries;
+//     });
   
-    // Add rank
-    return groupedArray.map((item, index) => ({
-      ...item,
-      rank: index + 1,
-    }));
-  }, [data]);
+//     // Add rank
+//     return groupedArray.map((item, index) => ({
+//       ...item,
+//       rank: index + 1,
+//     }));
+//   }, [data]);
   return (
     <TableContainer>
       <Table sx={{ minWidth: 650 }}>
@@ -119,14 +119,14 @@ const LeaderboardTable = ({ data }) => {
           </TableRow>
         </TableHead>
         <TableBody>
-          {processedData.length === 0 ? (
+          {data.length === 0 ? (
             <TableRow>
               <TableCell colSpan={4} align="center" sx={{ py: 6 }}>
                 <Typography variant="body1">No data available</Typography>
               </TableCell>
             </TableRow>
           ) : (
-            processedData.map((row, index) => {
+            data.map((row, index) => {
               const rankDisplay = getRankDisplay(row.rank);
               const isTopThree = row.rank <= 3;
               console.log("row",row)
