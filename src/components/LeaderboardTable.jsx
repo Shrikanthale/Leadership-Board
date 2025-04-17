@@ -18,7 +18,7 @@ import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import WorkspacePremiumIcon from '@mui/icons-material/WorkspacePremium';
 import StarsIcon from '@mui/icons-material/Stars';
 import PersonIcon from '@mui/icons-material/Person';
-
+import { useMemo } from "react";
 const LeaderboardTable = ({ data }) => {
   const theme = useTheme();
   
@@ -71,36 +71,65 @@ const LeaderboardTable = ({ data }) => {
   // Get initials from user's full name
   const getInitials = (name) => {
     return name
-      .split(' ')
-      .map(part => part[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
+      ?.split(' ')
+      ?.map(part => part[0])
+      ?.join('')
+      ?.toUpperCase()
+      ?.slice(0, 2);
   };
-
+  const processedData = useMemo(() => {
+    const grouped = {};
+  
+    data.forEach((item) => {
+      const name = item.userName;
+      if (!grouped[name]) {
+        grouped[name] = {
+          ...item,
+          points: 0,
+          entries: 0,
+        };
+      }
+      grouped[name].points += item.points;
+      grouped[name].entries += 1;
+    });
+  
+    const groupedArray = Object.values(grouped);
+  
+    // Sort descending by points, then by entries if tie
+    groupedArray.sort((a, b) => {
+      if (b.points !== a.points) return b.points - a.points;
+      return b.entries - a.entries;
+    });
+  
+    // Add rank
+    return groupedArray.map((item, index) => ({
+      ...item,
+      rank: index + 1,
+    }));
+  }, [data]);
   return (
     <TableContainer>
       <Table sx={{ minWidth: 650 }}>
         <TableHead>
           <TableRow sx={{ backgroundColor: theme.palette.grey[50] }}>
             <TableCell align="center" sx={{ fontWeight: 'bold', width: '10%' }}>Rank</TableCell>
-            <TableCell sx={{ fontWeight: 'bold', width: '15%' }}>User ID</TableCell>
+            <TableCell sx={{ fontWeight: 'bold', width: '15%' }}>ID</TableCell>
             <TableCell sx={{ fontWeight: 'bold', width: '40%' }}>User</TableCell>
-            <TableCell align="right" sx={{ fontWeight: 'bold', width: '35%' }}>Total Points</TableCell>
+            <TableCell align="center" sx={{ fontWeight: 'bold', width: '35%' }}>Total Points</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
-          {data.length === 0 ? (
+          {processedData.length === 0 ? (
             <TableRow>
               <TableCell colSpan={4} align="center" sx={{ py: 6 }}>
                 <Typography variant="body1">No data available</Typography>
               </TableCell>
             </TableRow>
           ) : (
-            data.map((row, index) => {
+            processedData.map((row, index) => {
               const rankDisplay = getRankDisplay(row.rank);
               const isTopThree = row.rank <= 3;
-              
+              console.log("row",row)
               return (
                 <Zoom 
                   in={true} 
@@ -154,7 +183,7 @@ const LeaderboardTable = ({ data }) => {
                     
                     <TableCell>
                       <Chip 
-                        label={`#${row.id}`} 
+                        label={`#${row._id}`} 
                         size="small" 
                         variant={isTopThree ? "filled" : "outlined"}
                         color={isTopThree ? "primary" : "default"}
@@ -171,7 +200,7 @@ const LeaderboardTable = ({ data }) => {
                             boxShadow: isTopThree ? `0 0 0 2px ${rankDisplay.color}` : 'none'
                           }}
                         >
-                          {getInitials(row.full_name)}
+                          {getInitials(row.userName)}
                         </Avatar>
                         <Typography 
                           variant="body1" 
@@ -180,14 +209,14 @@ const LeaderboardTable = ({ data }) => {
                             color: isTopThree ? rankDisplay.color : theme.palette.text.primary
                           }}
                         >
-                          {row.full_name}
+                          {row.userName}
                         </Typography>
                       </Box>
                     </TableCell>
                     
                     <TableCell align="right">
-                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
-                        <Box sx={{ width: '70%', mr: 2 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        {/* <Box sx={{ width: '70%', mr: 2 }}>
                           <LinearProgress 
                             variant="determinate" 
                             value={(row.total_points / maxPoints) * 100}
@@ -201,7 +230,7 @@ const LeaderboardTable = ({ data }) => {
                               }
                             }}
                           />
-                        </Box>
+                        </Box> */}
                         <Box sx={{ 
                           minWidth: 70, 
                           textAlign: 'right',
@@ -209,7 +238,7 @@ const LeaderboardTable = ({ data }) => {
                           fontWeight: 'bold',
                           fontSize: '1.1rem'
                         }}>
-                          {row.total_points}
+                          {row.points}
                         </Box>
                       </Box>
                     </TableCell>
